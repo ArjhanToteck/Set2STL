@@ -1,9 +1,16 @@
 "use client";
 
+import { BP3D } from "binpackingjs";
+
+const { Item, Bin, Packer } = BP3D;
+
 import React, { useState, useEffect, useRef } from "react";
 
 export default function Page() {
 	let bricks;
+	let bricksBin = new Bin("bricks", 220, 250, 220);
+	let binPacker = new Packer();
+	binPacker.addBin(bricksBin);
 
 	return (
 		<main>
@@ -27,10 +34,34 @@ export default function Page() {
 			.then((response) => response.json())
 			.then((data) => {
 				bricks = data;
+				loadBrickStls();
 			});
 	}
 
-	async function getStlFromName(name) {
+	async function loadBrickStls() {
+
+		// pack items into bin1
+		packer.pack();
+
+		// item1, item2, item3
+		console.log(bin1.items);
+
+		for (let i = 0; i < bricks.length; i++) {
+			const brick = bricks[i];
+
+			// load stl
+			brick.stl = await loadStlFromName(brick.stlName);
+
+			// create brick bin packing item
+			// TODO: why tf is everything multiplied by 100,000 by the library
+			const brickBinItem = new Item(brick.stlName, 5, 5, 5, 5);
+			binPacker.addItem(brickBinItem);
+		}
+
+		packBricks();
+	}
+
+	async function loadStlFromName(name) {
 		const stlRequest = await fetch(`https://raw.githubusercontent.com/ArjhanToteck/LDraw-Library/main/stl/${name}.stl`, { cache: "no-store" });
 
 		// check if stl exists
@@ -40,5 +71,10 @@ export default function Page() {
 			// return stl
 			return await stlRequest.text();
 		}
+	}
+
+	function packBricks() {
+		binPacker.pack();
+		console.log(bricksBin.items);
 	}
 }
