@@ -33,6 +33,12 @@ export default async function getBricks(req, res) {
 		const stlName = getBrickStlName(rawBrick);
 		let existingMatchFound = false;
 
+		// TODO: track list of parts that weren't found and send them in their ids in the api as well
+
+		if (!stlName) {
+			continue;
+		}
+
 		// combine bricks that have the same stl but different color
 		for (let j = 0; j < bricks.length; j++) {
 			const searchedBrick = bricks[j];

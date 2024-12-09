@@ -1,13 +1,25 @@
 "use client";
 
 import LoadingBar from "@/src/components/LoadingBar";
+
+import React, { useState, useEffect } from "react";
 import { BP3D } from "binpackingjs";
+import * as THREE from "three";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
+import { STLExporter } from "three/examples/jsm/exporters/STLExporter";
 
 const { Item, Bin, Packer } = BP3D;
-
-import React, { useState, useEffect, useRef } from "react";
+const stlLoader = new STLLoader();
+const stlExporter = new STLExporter();
 
 export default function Page() {
+	// loading bar states
+	const [loadPercentage, setLoadPercentage] = useState(0);
+	const [loadLabel, setLoadLabel] = useState("Loading...");
+	const [downloadEnabled, setDownloadEnabled] = useState(false);
+	const [downloadUrl, setDownloadUrl] = useState("");
+
+	// bricks
 	let bricks;
 	let bricksBin = new Bin("bricks", 220, 250, 220);
 	let binPacker = new Packer();
@@ -22,15 +34,19 @@ export default function Page() {
 				<input id="setId" type="text" autoComplete="off" placeholder="Lego Set ID"></input>
 				<br></br>
 				<button onClick={loadSet}>Load Set</button>
+				<a style={{ display: downloadEnabled ? "block" : "none" }} href={downloadUrl} download={"lego.stl"}>Download</a>
 				<br></br>
 				{/* TODO: figure out how to update loading bar*/}
-				<LoadingBar percentage={50} />
+				<LoadingBar percentage={loadPercentage} label={loadLabel} />
 
 			</section>
 		</main>
 	);
 
 	function loadSet() {
+		// update loading bar
+		setLoadLabel("Loading bricks list...");
+
 		const setId = document.getElementById("setId").value;
 
 		fetch(`${process.env.NEXT_PUBLIC_PROCESSING_SERVER}/api/projects/brickedUp?setId=${setId}`)
@@ -42,7 +58,14 @@ export default function Page() {
 	}
 
 	async function loadBrickStls() {
+		// update loading bar
 		for (let i = 0; i < bricks.length; i++) {
+			// 10% for the bricks list and all brick stls should make up another 70% total
+			const loadPercentage = 10 + ((i / bricks.length) * 70);
+
+			setLoadPercentage(loadPercentage)
+			setLoadLabel(`Loading brick stl ${i + 1}/${bricks.length}...`);
+
 			const brick = bricks[i];
 
 			// load stl
@@ -51,12 +74,20 @@ export default function Page() {
 			// load bounding box for stl
 			brick.dimensions = await loadDimensionsFromName(brick.stlName);
 
+			// TODO: don't use magic number for padding
+			// add padding
+			brick.dimensions = [brick.dimensions[0] + 1, brick.dimensions[1] + 1, brick.dimensions[2] + 1];
+
+			// track bin items for this type of brick
+			brick.binItems = [];
+
 			// loop once for each brick of this type in the set
 			for (let j = 0; j < brick.quantity; j++) {
-				// create brick bin packing item
+				// create brick bin packing item (flip y and z for the bin packing coordinate system)
 				// TODO: why tf is everything multiplied by 100,000 by the library
-				const brickBinItem = new Item("Item " + i, ...brick.dimensions, 0);
+				const brickBinItem = new Item(`${brick.stlName} (${j + 1})`, brick.dimensions[0], brick.dimensions[2], brick.dimensions[1], 0);
 				binPacker.addItem(brickBinItem);
+				brick.binItems.push(brickBinItem);
 			}
 		}
 
@@ -64,19 +95,11 @@ export default function Page() {
 	}
 
 	async function loadStlFromName(name) {
-		const response = await fetch(`https://raw.githubusercontent.com/ArjhanToteck/LDraw-Library/main/stl/${name}.stl`, { cache: "no-store" });
-
-		// check if stl exists
-		if (!response.ok) {
-			return null;
-		} else {
-			// return stl
-			return await response.text();
-		}
+		return await stlLoader.loadAsync(`https://raw.githubusercontent.com/ArjhanToteck/LDraw-Library/main/stl/${name}.stl`);
 	}
 
 	async function loadDimensionsFromName(name) {
-		const response = await fetch(`https://raw.githubusercontent.com/ArjhanToteck/LDraw-Library/refs/heads/main/dimensions/${name}.json`, { cache: "no-store" });
+		const response = await fetch(`https://raw.githubusercontent.com/ArjhanToteck/LDraw-Library/refs/heads/main/dimensions/${name}.json`);
 
 		// check if dimensions exist
 		if (!response.ok) {
@@ -88,10 +111,90 @@ export default function Page() {
 	}
 
 	function packBricks() {
+		// update loading bar
+		setLoadLabel("Packing bricks...");
+
 		binPacker.addBin(bricksBin);
 		binPacker.pack();
-		console.log(bricksBin.items);
-		// TODO: handle overflow, creating multiple bins
-		// TODO: use binpacking info to join everything into a single stl
+		console.log(JSON.parse(JSON.stringify(bricksBin.items)));
+
+		// TODO: handle overflow, creating multiple bins if needed
+
+		combineBricks();
+	}
+
+	function combineBricks() {
+		setLoadLabel("Combining bricks...");
+
+		const combinedScene = new THREE.Scene();
+
+		//let translation = 0;
+
+		// loop through bricks
+		for (let i = 0; i < bricks.length; i++) {
+			// TODO: rotate bricks
+
+			const brick = bricks[i];
+
+			// get adjusted center
+			brick.stl.computeBoundingBox();
+			const center = new THREE.Vector3();
+			brick.stl.boundingBox.getCenter(center);
+
+			// loop for brick quantity
+			for (let j = 0; j < brick.quantity; j++) {
+				// create clone
+				const stl = brick.stl.clone(); //new THREE.BoxGeometry(...brick.dimensions); 
+
+				// get position for brick instance
+				let position = brick.binItems[j].position; // [0, 0, translation];
+				//translation += brick.dimensions[2];
+
+				// flip y and z for three.js
+				position = [position[0], position[2], position[1]];
+
+				// fix scale
+				position[0] /= 100000;
+				position[1] /= 100000;
+				position[2] /= 100000;
+
+				// fix stl origin being off
+				position[0] -= center.x;
+				position[1] -= center.y;
+				position[2] -= center.z;
+
+				// fix center pivot
+				position[0] += brick.dimensions[0] / 2;
+				position[1] += brick.dimensions[1] / 2;
+				position[2] += brick.dimensions[2] / 2;
+
+				// set position
+				stl.translate(...position);
+
+				// create mesh for brick instance and set position
+				const brickMesh = new THREE.Mesh(stl);
+				combinedScene.add(brickMesh);
+			}
+		}
+
+		exportStl(combinedScene);
+	}
+
+	function exportStl(combinedScene) {
+		setLoadLabel("Exporting scene...");
+
+		// export scene as stl
+		const stlBinary = stlExporter.parse(combinedScene, { binary: true });
+
+		// convert to blob url
+		const blob = new Blob([stlBinary], { type: "application/octet-stream" });
+		const blobUrl = URL.createObjectURL(blob);
+
+		// set download link to blob url
+		setDownloadUrl(blobUrl);
+		setDownloadEnabled(true);
+
+		setLoadLabel("Done!");
+		setLoadPercentage(100);
 	}
 }
