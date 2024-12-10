@@ -85,7 +85,8 @@ export default function Page() {
 			for (let j = 0; j < brick.quantity; j++) {
 				// create brick bin packing item (flip y and z for the bin packing coordinate system)
 				// TODO: why tf is everything multiplied by 100,000 by the library
-				const brickBinItem = new Item(`${brick.stlName} (${j + 1})`, brick.dimensions[0], brick.dimensions[2], brick.dimensions[1], 0);
+				// TODO: in the future, allow rotation and handle it (not allowing it for now)
+				const brickBinItem = new Item(`${brick.stlName} (${j + 1})`, brick.dimensions[0], brick.dimensions[2], brick.dimensions[1], 0, [0]);
 				binPacker.addItem(brickBinItem);
 				brick.binItems.push(brickBinItem);
 			}
@@ -128,12 +129,8 @@ export default function Page() {
 
 		const combinedScene = new THREE.Scene();
 
-		//let translation = 0;
-
 		// loop through bricks
 		for (let i = 0; i < bricks.length; i++) {
-			// TODO: rotate bricks
-
 			const brick = bricks[i];
 
 			// get adjusted center
@@ -143,12 +140,13 @@ export default function Page() {
 
 			// loop for brick quantity
 			for (let j = 0; j < brick.quantity; j++) {
+				const binItem = brick.binItems[j];
+
 				// create clone
-				const stl = brick.stl.clone(); //new THREE.BoxGeometry(...brick.dimensions); 
+				const stl = brick.stl.clone();
 
 				// get position for brick instance
-				let position = brick.binItems[j].position; // [0, 0, translation];
-				//translation += brick.dimensions[2];
+				let position = binItem.position;
 
 				// flip y and z for three.js
 				position = [position[0], position[2], position[1]];
@@ -171,7 +169,7 @@ export default function Page() {
 				// set position
 				stl.translate(...position);
 
-				// create mesh for brick instance and set position
+				// create mesh for brick instance
 				const brickMesh = new THREE.Mesh(stl);
 				combinedScene.add(brickMesh);
 			}
