@@ -16,6 +16,7 @@ export default function Page() {
 	// loading bar states
 	const [loadPercentage, setLoadPercentage] = useState(0);
 	const [loadLabel, setLoadLabel] = useState("Loading...");
+	const [loadHidden, setLoadHidden] = useState(true);
 	const [downloadEnabled, setDownloadEnabled] = useState(false);
 	const [downloadUrl, setDownloadUrl] = useState("");
 
@@ -27,23 +28,29 @@ export default function Page() {
 	return (
 		<main>
 			<section>
-				<h1>Bricked Up</h1>
+				<form onSubmit={loadSet}>
+					<h1>Bricked Up</h1>
 
-				<p>Enter a Lego set id and download an STL file of its parts.</p>
+					<p>Enter a Lego set id and download an STL file of its parts.</p>
 
-				<input id="setId" type="text" autoComplete="off" placeholder="Lego Set ID"></input>
+					<input id="setId" type="text" autoComplete="off" placeholder="Lego Set ID"></input>
+					<br></br>
+					<br></br>
+					<button>Load Set</button>
+				</form>
 				<br></br>
-				<button onClick={loadSet}>Load Set</button>
+				<LoadingBar percentage={loadPercentage} label={loadLabel} hidden={loadHidden} />
+
 				<a style={{ display: downloadEnabled ? "block" : "none" }} href={downloadUrl} download={"lego.stl"}>Download</a>
-				<br></br>
-				{/* TODO: figure out how to update loading bar*/}
-				<LoadingBar percentage={loadPercentage} label={loadLabel} />
-
 			</section>
 		</main>
 	);
 
-	function loadSet() {
+	function loadSet(event) {
+		event.preventDefault();
+
+		setLoadHidden(false);
+
 		// update loading bar
 		setLoadLabel("Loading bricks list...");
 
