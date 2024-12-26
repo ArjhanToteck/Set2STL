@@ -1,4 +1,4 @@
-import Brick from "./Brick";
+import Brick from "./brick";
 
 const stlLibrary = await getStlLibrary();
 
