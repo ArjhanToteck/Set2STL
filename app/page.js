@@ -29,7 +29,7 @@ export default function Page() {
 		<main>
 			<section>
 				<form onSubmit={loadSet}>
-					<h1>Bricked Up</h1>
+					<h1>Set2STL</h1>
 
 					<p>Enter a Lego set id and download an STL file of its parts.</p>
 
@@ -56,7 +56,7 @@ export default function Page() {
 
 		const setId = document.getElementById("setId").value;
 
-		fetch(`${process.env.NEXT_PUBLIC_PROCESSING_SERVER}/api/projects/brickedUp?setId=${setId}`)
+		fetch(`${process.env.NEXT_PUBLIC_PROCESSING_SERVER}/api/projects/set2Stl?setId=${setId}`)
 			.then((response) => response.json())
 			.then((data) => {
 				bricks = data;
