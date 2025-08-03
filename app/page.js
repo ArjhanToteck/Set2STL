@@ -68,9 +68,9 @@ export default function Page() {
 		// update loading bar
 		for (let i = 0; i < bricks.length; i++) {
 			// 10% for the bricks list and all brick stls should make up another 70% total
-			const loadPercentage = 10 + ((i / bricks.length) * 70);
+			const loadPercentage = 0.1 + ((i / bricks.length) * 0.7);
 
-			setLoadPercentage(loadPercentage)
+			setLoadPercentage(loadPercentage);
 			setLoadLabel(`Loading brick stl ${i + 1}/${bricks.length}...`);
 
 			const brick = bricks[i];
@@ -200,6 +200,6 @@ export default function Page() {
 		setDownloadEnabled(true);
 
 		setLoadLabel("Done!");
-		setLoadPercentage(100);
+		setLoadPercentage(1);
 	}
 }
