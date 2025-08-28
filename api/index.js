@@ -2,7 +2,7 @@ import Brick from "./Brick";
 
 const stlLibrary = await getStlLibrary();
 
-export default async function getBricks(req, res) {
+export default async function handler(req, res) {
 	// json header
 	res.setHeader("Content-Type", "application/json");
 
